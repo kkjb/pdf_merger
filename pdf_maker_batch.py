@@ -18,14 +18,17 @@ import PyPDF2
 def pdf_converter(full_s_dir,pdf_output_name):
     # get jpg name in s_dir to jpg_list
     jpg_list = fnmatch.filter(os.listdir(full_s_dir), '*.jpg')
+    # 自然排序
     jpg_list = natsort.natsorted(jpg_list)
+    # 补全完整路径
     for i in range(len(jpg_list)):
         jpg_list[i] = full_s_dir + '\\' + jpg_list[i]
+    # 打开pdf指针
     with open(pdf_output_name,"wb") as f:
     	f.write(img2pdf.convert(jpg_list))
     f.close()
-#获取一个目录下的pdf文件名称
-#用于合并多个pdf文件    
+# 获取一个目录下的pdf文件名称
+# 用于合并多个pdf文件    
 def pdf_file_name_in_dir(full_s_dir,pdf_output_name):
     pdf_list = fnmatch.filter(os.listdir(full_s_dir), '*.pdf')
     pdf_list = natsort.natsorted(pdf_list)
@@ -54,13 +57,16 @@ for i in range(len(s_dir_list)):
     pdf_output_name = s_dir_list[i] +".pdf"
     full_s_dir      = full_s_dir_list[i]
     try:
+    # try jpg to pdf at first
         pdf_converter(full_s_dir,pdf_output_name)
-    except Exception as e:
-        pass
+    except IndexError as e:
+    # if IndexError happens, which means this directory has multi-pdf for mergeing    
+        pdf_file_name_in_dir(full_s_dir,pdf_output_name)
     continue
 
 #合并多个pdf
 #出错自动跳过
+"""
 for i in range(len(s_dir_list)):
     pdf_output_name = s_dir_list[i] +".pdf"
     full_s_dir      = full_s_dir_list[i]
@@ -69,4 +75,4 @@ for i in range(len(s_dir_list)):
     except Exception as e:
         pass
     continue        
-
+"""
