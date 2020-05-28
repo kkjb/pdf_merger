@@ -17,7 +17,8 @@ import PyPDF2
 # 函数预留 输入 jpg文件目录，输入输出目录
 def pdf_converter(full_s_dir,pdf_output_name):
     # get jpg name in s_dir to jpg_list
-    jpg_list = fnmatch.filter(os.listdir(full_s_dir), '*.jpg')
+    jpg_list = fnmatch.filter(os.listdir(full_s_dir), '*.png')
+    jpg_list = jpg_list + fnmatch.filter(os.listdir(full_s_dir), '*.jpg')
     # 自然排序
     jpg_list = natsort.natsorted(jpg_list)
     # 补全完整路径
