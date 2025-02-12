@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import PyPDF2
 import re
 import os
 import sys
 import time
 import natsort
+import pikepdf  # 用于压缩PDF
+
 # 自然排序
 
 # PDF分割函数
-def split_pdf(input_pdf, end_pages):
+def split_pdf(input_pdf, end_pages, compress=False):
     # 获取输入PDF的路径和文件名
     input_dir = os.path.dirname(input_pdf)
     input_filename = os.path.basename(input_pdf)
@@ -57,6 +60,11 @@ def split_pdf(input_pdf, end_pages):
                 with open(output_filepath, "wb") as output_pdf:
                     writer.write(output_pdf)
                 print(f"文件 {output_filename} 创建成功! 保存路径：{output_filepath}")
+
+                # 如果选择了压缩选项，则进行压缩
+                if compress:
+                    compress_pdf(output_filepath)
+
             except Exception as e:
                 print(f"保存文件失败: {e}")
                 continue
@@ -77,9 +85,23 @@ def split_pdf(input_pdf, end_pages):
                 with open(output_filepath, "wb") as output_pdf:
                     writer.write(output_pdf)
                 print(f"文件 {output_filename} 创建成功! 保存路径：{output_filepath}")
+
+                # 如果选择了压缩选项，则进行压缩
+                if compress:
+                    compress_pdf(output_filepath)
+
             except Exception as e:
                 print(f"保存文件失败: {e}")
                 return
+
+# 压缩PDF文件
+def compress_pdf(input_pdf):
+    try:
+        with pikepdf.open(input_pdf, allow_overwriting_input=True) as pdf:
+            pdf.save(input_pdf, compress_streams=True)  # 开启压缩选项
+        print(f"文件已压缩: {input_pdf}")
+    except Exception as e:
+        print(f"压缩文件失败: {e}")
 
 # 主函数
 if __name__ == "__main__":
@@ -94,10 +116,12 @@ if __name__ == "__main__":
         else:
             pdf_file = path_name.strip('"')
             input_ranges = input(f"请输入分割点位置（最后一页，空格分隔） for {pdf_file}: ")
-            
+            compress_option = input("是否压缩分割后的PDF文件? (yes/no): ").strip().lower()
+            compress = compress_option == 'yes'
+
             if input_ranges:
                 end_pages = list(map(int, input_ranges.split()))
-                split_pdf(pdf_file, end_pages)
+                split_pdf(pdf_file, end_pages, compress)
             else:
                 print("没有输入分割点，程序退出。")
                 time.sleep(5)
@@ -106,10 +130,12 @@ if __name__ == "__main__":
     else:
         pdf_file = sys.argv[1].strip('"')
         input_ranges = input(f"请输入分割点位置（最后一页，空格分隔） for {pdf_file}: ")
-        
+        compress_option = input("是否压缩分割后的PDF文件? (yes/no): ").strip().lower()
+        compress = compress_option == 'yes'
+
         if input_ranges:
             end_pages = list(map(int, input_ranges.split()))
-            split_pdf(pdf_file, end_pages)
+            split_pdf(pdf_file, end_pages, compress)
         else:
             print("没有输入分割点，程序退出。")
             time.sleep(5)
