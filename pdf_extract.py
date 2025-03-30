@@ -1,118 +1,87 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed May  6 11:27:23 2020
 
-@author: kkjb
-"""
-# import fnmatch
-# import os
-# import img2pdf
-# import natsort
-# import PyPDF2
-
-# #pdf批量合并
-# #当前目录的子目录作为文件民
-# #子目录自然排序待合并的jpg
-
-# # 函数预留 输入 jpg文件目录，输入输出目录
-# def pdf_converter(full_s_dir,pdf_output_name):
-#     # get jpg name in s_dir to jpg_list
-#     jpg_list = fnmatch.filter(os.listdir(full_s_dir), '*.png')
-#     jpg_list = jpg_list + fnmatch.filter(os.listdir(full_s_dir), '*.jpg')
-#     # 自然排序
-#     jpg_list = natsort.natsorted(jpg_list)
-#     # 补全完整路径
-#     for i in range(len(jpg_list)):
-#         jpg_list[i] = full_s_dir + '\\' + jpg_list[i]
-#     # 打开pdf指针
-#     with open(pdf_output_name,"wb") as f:
-#     	f.write(img2pdf.convert(jpg_list))
-#     f.close()
-# # 获取一个目录下的pdf文件名称
-# # 用于合并多个pdf文件    
-# def pdf_file_name_in_dir(full_s_dir,pdf_output_name):
-#     pdf_list = fnmatch.filter(os.listdir(full_s_dir), '*.pdf')
-#     pdf_list = natsort.natsorted(pdf_list)
-#     for i in range(len(pdf_list)):
-#         pdf_list[i] = full_s_dir + '\\' + pdf_list[i]
-#     pdf_output = PyPDF2.PdfFileWriter()
-#     for file_name in pdf_list:
-#         pdf_input = PyPDF2.PdfFileReader(open(file_name, 'rb'))
-#         # 获取 pdf 共用多少页
-#         page_count = pdf_input.getNumPages()
-#         #print(page_count)
-#         for i in range(page_count):
-#             pdf_output.addPage(pdf_input.getPage(i))
-#     pdf_output.write(open(pdf_output_name, 'wb'))    
-
-
-# s_root_dir =os.getcwd()
-# s_dir_list =[f.name for f in os.scandir(s_root_dir) if f.is_dir() ]
-# full_s_dir_list = []
-# for i in range(len(s_dir_list)):
-#     full_s_dir_list.append( s_root_dir + '\\' +s_dir_list[i] )
-
-# #jpg到pdf合并
-# #出错自动跳过
-# for i in range(len(s_dir_list)):
-#     pdf_output_name = s_dir_list[i] +".pdf"
-#     full_s_dir      = full_s_dir_list[i]
-#     try:
-#     # try jpg to pdf at first
-#         pdf_converter(full_s_dir,pdf_output_name)
-#     except IndexError as e:
-#     # if IndexError happens, which means this directory has multi-pdf for mergeing    
-#         pdf_file_name_in_dir(full_s_dir,pdf_output_name)
-#     continue
-
-
-# # #合并多个pdf
-# # #出错自动跳过
-
-# # for i in range(len(s_dir_list)):
-# #     pdf_output_name = s_dir_list[i] +".pdf"
-# #     full_s_dir      = full_s_dir_list[i]
-# #     try:
-# #         pdf_file_name_in_dir(full_s_dir,pdf_output_name)
-# #     except Exception as e:
-# #         pass
-# #     continue        
-
-
-import PyPDF2
-import io
-from PIL import Image
 import os
+import io
+import sys
+from PIL import Image
 
-# Open the PDF file and create a PDF reader object
-pdf_file = open('example.pdf', 'rb')
-pdf_reader = PyPDF2.PdfFileReader(pdf_file)
+try:
+    from PyPDF2 import PdfReader  # 兼容 PyPDF2 新版（>=2.0.0）
+except ImportError:
+    from PyPDF2 import PdfFileReader as PdfReader  # 兼容 PyPDF2 旧版（<2.0.0）
 
-# Loop through each page in the PDF file
-for page_num in range(pdf_reader.numPages):
-    # Get the current page and create a PDF page object
-    page = pdf_reader.getPage(page_num)
-    page_obj = page['/Resources']['/XObject'].getObject()
+def extract_images_from_pdf(pdf_path):
+    # 获取 PDF 文件所在目录和文件名（不含扩展名）
+    pdf_dir = os.path.dirname(pdf_path)
+    pdf_name = os.path.splitext(os.path.basename(pdf_path))[0]
 
-    # Create a folder for the current page
-    folder_name = "page{}_image".format(page_num+1)
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
+    # 创建以 PDF 文件名命名的文件夹
+    output_folder = os.path.join(pdf_dir, pdf_name)
+    os.makedirs(output_folder, exist_ok=True)
 
-    # Loop through each object in the page object
-    for obj_num in page_obj:
-        # Check if the object is an image
-        if page_obj[obj_num]['/Subtype'] == '/Image':
-            try:
-                # Extract the image data and create a PIL image object
-                img_data = page_obj[obj_num]._data
-                img_stream = io.BytesIO(img_data)
-                img = Image.open(img_stream)
+    # 打开 PDF 文件
+    pdf_reader = PdfReader(pdf_path)
 
-                # Save the image to a file in the current page's folder
-                img.save('page{}_image{}.{}'.format(page_num+1, obj_num, img.format.lower()))
-            except Exception as e:
-                print(f"Error extracting image from page {page_num+1}, object {obj_num}: {e}")
+    # 获取总页数并计算页号的位数
+    total_pages = len(pdf_reader.pages)
+    page_number_width = len(str(total_pages))
 
-# Close the PDF file
-pdf_file.close()
+    # 遍历 PDF 每一页
+    for page_num in range(total_pages):
+        page = pdf_reader.pages[page_num]
+
+        # 检查页面是否包含 XObject（图片对象）
+        if "/Resources" in page and "/XObject" in page["/Resources"]:
+            xObject = page["/Resources"]["/XObject"]
+
+            # 创建保存当前页图片的子文件夹
+            folder_name = os.path.join(output_folder, f"page_{str(page_num + 1).zfill(page_number_width)}_images")
+            os.makedirs(folder_name, exist_ok=True)
+
+            # 遍历所有对象
+            for obj_name in xObject:
+                obj = xObject[obj_name]
+                if obj.get("/Subtype") == "/Image":
+                    try:
+                        # 读取图片数据
+                        if hasattr(obj, "get_data"):
+                            img_data = obj.get_data()  # 新版 PyPDF2
+                        else:
+                            img_data = obj._data  # 旧版 PyPDF2
+                        
+                        img_stream = io.BytesIO(img_data)
+
+                        # 处理图片格式
+                        img_format = obj.get("/Filter")
+                        ext = "jpg" if img_format == "/DCTDecode" else "png"
+
+                        # 用 PIL 打开图片
+                        img = Image.open(img_stream)
+
+                        # 保存图片，文件名加上页号前缀
+                        img_filename = os.path.join(
+                            folder_name,
+                            f"{str(page_num + 1).zfill(page_number_width)}_{obj_name[1:]}.{ext}"
+                        )
+                        img.save(img_filename)
+                        print(f"保存图片: {img_filename}")
+                    except Exception as e:
+                        print(f"提取图片失败: {e}")
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        pdf_path = input('请拖入 PDF 文件到终端窗口里,并回车:\n')
+        if not pdf_path.strip():
+            print("未输入文件路径")
+            sys.exit(1)
+        else:
+            pdf_path = pdf_path.strip('"')
+    else:
+        pdf_path = sys.argv[1].strip('"')
+
+    if not os.path.isfile(pdf_path):
+        print(f"文件不存在: {pdf_path}")
+        sys.exit(1)
+
+    extract_images_from_pdf(pdf_path)
+    print("图片提取完成！")
